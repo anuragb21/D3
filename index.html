@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Data Visualization Assignment - 2</title>
+
+    <script src="http://code.jquery.com/jquery-1.10.2.js" type="text/javascript" charset="utf-8"></script>
+    <script src="jquery-ui.js"></script>
+    <script type="text/javascript" src="d3.js"></script>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+    <style>
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: black;
+            shape-rendering: crispEdges;
+        }
+
+        body{ font : 12px sans-serif;}
+        .rect { opacity: .7; }
+        /*.tipsy { font-size:11px; margin-top:-10px;}*/
+        .axis text {
+            font-family: sans-serif;
+            font-size: 11px;
+        }
+        .ui-slider  {
+            width: 300px;
+            padding-left: 5px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<h1> Literacy Rate comparison among Indian State and Union Territories over past four decades</h1>
+
+<p id="menu" >Year :
+    <select class="year" id="year">
+        <option value="1981" >1981</option>
+        <option value="1991" selected>1991  </option>
+        <option value="2001">2001</option>
+        <option value="2011" >2011</option>
+    </select>
+
+    &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; &nbsp;
+    Gender :
+    <select class="gender" id="gender">
+        <option value="Average">Average</option>
+        <option value="Male" selected>Male</option>
+        <option value="Female">Female</option>
+    </select>
+</p>
+
+<p>
+    <label for="amount">Literacy Percentage Range:</label>
+    <input type="text" id="amount" readonly style="border:0; color:black; font-weight:bold;">
+</p>
+<div id="slider">
+</div>
+<br>
+
+<script type="text/javascript">
+
+    var w=1300, h=500;
+    var padding=30;
+    var yearselected = 1991;
+    var genderselected = "Male";
+    var first = 20;
+    var last = 100;
+    var svg = d3.select("body")
+            .append("svg")
+            .attr("width",w)
+            .attr("height",h+20);
+
+    var state = "India"
+
+    d3.csv("literacyplotdata.csv",function(error, dataload) {
+        if (error) throw error;
+
+        create_state_details_svg(state);
+        create_svgbody(yearselected, genderselected, first, last);
+
+        function create_state_details_svg(state){
+            var width = 200;
+            var height = 300;
+            var x0 = d3.scale.ordinal()
+                    .rangeRoundBands([0, width], .1)
+            var x1 = d3.scale.ordinal();
+            var color = d3.scale.ordinal()
+                    .range(["#98abc5", "#8a89a6", "#7b6888"]);
+            var yScale = d3.scale.linear()
+                    .domain([100, 0])
+                    .range([0, height]);
+            var xAxis = d3.svg.axis()
+                    .scale(x0)
+                    .orient("bottom");
+            var yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+            var yearstext = [1981, 1991, 2001, 2011];
+            var axiswidth = 50;
+
+            svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(1050," + (height+80) + ")")
+                    .call(xAxis)
+                    .append("text")
+                    .attr("y", 48)
+                    .attr("x", 225)
+                    .attr("dy", "-3em")
+                    .style("text-anchor", "end")
+                    .text("Years");
+
+            svg.append("g")
+                    .attr("class", "axis")
+                    .attr("transform", "translate(" + 1050 + ",80)")
+                    .call(yAxis)
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("x", -10)
+                    .attr("dy", "-3em")
+                    .style("text-anchor", "end")
+                    .text("Literacy % for "+ state);
+
+            var literacyratecolNames = d3.keys(dataload[0]).filter(function(key) { return key !== "Year" && key!=="States" ; });
+            var dataload1;
+            dataload1 = dataload.filter(function(d){ return d.States == state });
+            dataload1.forEach(function(d) {
+                d.literacy = literacyratecolNames.map(function(name) { return {name: name, value: +d[name]}; });
+            });
+
+            x0.domain(dataload1.map(function(d ) { return d.Year; }));
+            x1.domain(literacyratecolNames).rangeRoundBands([0, x0.rangeBand()]);
+
+            var year = svg.selectAll(".year")
+                    .data(dataload1)
+                    .enter().append("g")
+                    .attr("class", "state")
+                    .attr("transform", function(d) { return "translate(" + x0(d.Year) + ",0)"; });
+
+            year.selectAll("rect")
+                    .data(function(d) { return d.literacy; })
+                    .enter().append("rect")
+                    .attr("width", x1.rangeBand())
+                    .attr("x", function(d) { return x1(d.name)+1050; })
+                    .attr("y", function(d) { return (yScale(d.value) + 80); })
+                    .attr("height", function(d) { return height - (yScale(d.value)); })
+                    .style("fill", function(d) { return color(d.name); });
+
+            svg.selectAll(".legend")
+                    .data(literacyratecolNames.slice().reverse())
+                    .enter()
+                    .append("g")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+                    .append("text")
+                    .attr("x", width - 24 + 1050)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "end")
+                    .text(function(d) { return d; });
+
+            svg.selectAll(".legend")
+                    .data(literacyratecolNames.slice().reverse())
+                    .enter()
+                    .append("g")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+                    .append("rect")
+                    .attr("x", width - 18+1050)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .style("fill", color);
+
+            svg.selectAll("yearstext")
+                    .data(yearstext)
+                    .enter()
+                    .append("text")
+                    .attr("y", 393)
+                    .attr("x",function (d, i){
+                        return  i*axiswidth+1060;})
+                    .text(function(d) {
+                        return d;
+                    });
+        }
+
+        function create_svgbody(yearselected, genderselected, first, last){
+
+            var colName = genderselected+"LiteracyRate";
+            var xScale = d3.scale.linear()
+                    .range([0, w - 20]);
+            var yScale = d3.scale.linear()
+                    .domain([100, 0])
+                    .range([0, h]);
+
+            var xaxis = d3.svg.axis().scale(xScale).orient("bottom").tickFormat("").ticks(0);
+            var yaxis = d3.svg.axis().scale(yScale).orient("left");
+
+            svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(30," + (h+5) + ")")
+                    .call(xaxis)
+                    .append("text")
+                    .attr("y", 6)
+                    .attr("x", 1000)
+                    .attr("dy", ".5em")
+                    .style("text-anchor", "end")
+                    .text("State and Union Territories of India");
+
+            svg.append("g")
+                    .attr("class", "axis")
+                    .attr("transform", "translate(" + padding + ",05)")
+                    .call(yaxis)
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("x", -10)
+                    .attr("dy", "0.6em")
+                    .style("text-anchor", "end")
+                    .text("Literacy %");
+
+            svg.selectAll("rect")
+                    .data(dataload)
+                    .enter()
+                    .append("rect")
+                    .filter(function(d){ return d.Year == yearselected })
+                    .filter(function(d){ return d[colName] > first && d[colName] < last })
+                    .attr("class", "rect").attr("x",function (d, i){
+                        return i*26+50;})
+                    .attr("y", function(d){return h-((d[colName])*5-5);})
+                    .attr("width",25)
+                    .attr("height",
+                            function (d){return (d[colName])*5 ;
+                            })
+                    .attr("fill","#F5D76E")
+                    .style("stroke","#F9690E")
+                    .on("click", function(d){
+                        state = d.States
+                        onClick() })
+                    .append("svg:title")
+                    .text(function(d) { return "Literacy Rate : " + d[colName] +"\n" +"Click here to view grouped chart for "+ d.States; });
+
+            svg.selectAll("text")
+                    .data(dataload)
+                    .enter()
+                    .append("text")
+                    .filter(function(d){ return d.Year == yearselected })
+                    .filter(function(d){ return d[colName] > first && d[colName] < last })
+                    .text(function(d) {
+                        console.log("States : " + d.States)
+                        return d.States;
+                    })
+                    .attr("x",function (d, i){
+                        return i*26 + 65;})
+
+                    .attr("y", function(d){return h-((d[colName])*5-9);})
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "12px")
+                    .attr("fill", "#22313F")
+                    .attr("style", " writing-mode: tb; glyph-orientation-vertical: 180");
+
+        function onClick(){
+            d3.selectAll("rect").remove();
+            d3.selectAll("text").remove();
+            console.log(state, yearselected, genderselected, first, last)
+            create_state_details_svg(state);
+            create_svgbody(yearselected, genderselected, first, last);
+        }}
+
+        d3.select(".year")
+                .on('change', function() {
+                    yearselected=this.value;
+                    d3.selectAll("rect").remove();
+                    d3.selectAll("text").remove();
+                    console.log(yearselected);
+                    create_svgbody(yearselected, genderselected, first, last);
+                    create_state_details_svg(state);
+                });
+
+        d3.select(".gender")
+                .on('change', function() {
+                    genderselected=this.value;
+                    d3.selectAll("rect").remove();
+                    d3.selectAll("text").remove();
+                    console.log(genderselected);
+
+                    create_svgbody(yearselected, genderselected, first, last);
+                    create_state_details_svg(state);
+                });
+
+        var $slider;
+        $slider = $(function () {
+            $("#slider").slider({
+                range: true,
+                min: 20,
+                max: 100,
+                values: [20, 100],
+                //step: 5,
+                slide: function (event, ui) {
+
+                    first = ui.values[0];
+                    last = ui.values[1];
+                    console.log(first, last);
+                    d3.selectAll("rect").remove();
+                    d3.selectAll("text").remove();
+                    $("#amount").val(ui.values[0] + "% - " + ui.values[1]+ "%");
+
+                    create_svgbody(yearselected, genderselected, first, last);
+                    create_state_details_svg(state);
+                },
+            });
+            $( "#amount" ).val(  $( "#slider" ).slider( "values", 0 ) +"% - "+ $( "#slider" ).slider( "values", 1 ) +"%");
+        }) ;
+        });
+
+</script>
+</body>
+</html>
